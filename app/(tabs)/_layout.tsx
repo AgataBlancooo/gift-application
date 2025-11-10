@@ -1,35 +1,65 @@
-import { Tabs } from 'expo-router';
 import React from 'react';
+import { Tabs } from 'expo-router';
+// Importujemy ikonę z biblioteki Font Awesome
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+// Funkcja pomocnicza do renderowania ikon
+function TabBarIcon(props: {
+  name: React.ComponentProps<typeof FontAwesome>['name'];
+  color: string;
+}) {
+  return <FontAwesome size={22} style={{ marginBottom: -3 }} {...props} />;
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  
+  // W przyszłości możesz tutaj zaimportować kolory z Twojego Colors.js
+  const primaryColor = '#FF69B4'; // Przykładowy róż
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarActiveTintColor: primaryColor, 
+        tabBarInactiveTintColor: '#999', 
+        headerShown: false, // Ukrywamy domyślne nagłówki
+      }}
+    >
+      {/* KARTA 1: DATY */}
       <Tabs.Screen
-        name="index"
+        name="dates" // Pasuje do pliku dates.tsx
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Nasze Daty',
+          tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
         }}
       />
+      
+      {/* KARTA 2: GENERATOR RANDEK */}
       <Tabs.Screen
-        name="explore"
+        name="generator" // Pasuje do pliku generator.tsx
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Randki',
+          tabBarIcon: ({ color }) => <TabBarIcon name="diamond" color={color} />, // Ikonka 'diament' lub 'magic'
         }}
       />
+      
+      {/* KARTA 3: ALBUM Z PODRÓŻY */}
+      <Tabs.Screen
+        name="travelalbum" // Pasuje do pliku travelalbum.tsx
+        options={{
+          title: 'Podróże',
+          tabBarIcon: ({ color }) => <TabBarIcon name="globe" color={color} />, // Ikonka 'globus' lub 'mapa'
+        }}
+      />
+      
+      {/* KARTA 4: ZAiK (Zadania/Tajemnice) */}
+      <Tabs.Screen
+        name="zaik" // Pasuje do pliku zaik.tsx
+        options={{
+          title: 'ZAiK',
+          tabBarIcon: ({ color }) => <TabBarIcon name="lock" color={color} />, // Ikonka 'kłódka' dla tajemnicy
+        }}
+      />
+      
     </Tabs>
   );
 }
