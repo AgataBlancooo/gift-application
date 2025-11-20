@@ -1,7 +1,5 @@
-declare const __initial_auth_token: string | undefined;
-
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -21,13 +19,9 @@ const storage = getStorage(app);
 
 export const authenticate = async () => {
   try {
-    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-      await signInWithCustomToken(auth, __initial_auth_token);
-    } else {
-      await signInAnonymously(auth);
-    }
+    await signInAnonymously(auth);
   } catch (error) {
-    console.error("Firebase Auth Error:", error);
+    console.log("Firebase Auth Error:", error);
   }
 };
 

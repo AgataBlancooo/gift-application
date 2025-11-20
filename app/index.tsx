@@ -7,9 +7,9 @@ import { FontSizes, FontWeights, FontFamilies } from "./constants/fonts";
 
 export default function HomeScreen() {
   const router = useRouter();
+  console.log('Sprawdzenie logów');
 
-  return (
-    
+  return (    
     <View style={styles.container}>
       <Image source={require("./assets/images/serca.png")} style={styles.icon} />
             <Text

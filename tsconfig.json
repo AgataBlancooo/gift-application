@@ -1,21 +1,22 @@
+//tsconfig.json
+
 {
   "compilerOptions": {
+    "module": "nodenext",
     "strict": true,
     "target": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
+    "customConditions": ["react-native"],
     "jsx": "react-native",
     "allowJs": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"]
+    },
+    "outDir": "./dist"
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
-  ],
+  "include": ["**/*.ts", "**/*.tsx"],
   "extends": "expo/tsconfig.base"
 }
+
