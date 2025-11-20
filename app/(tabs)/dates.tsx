@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert, Modal, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { db, authenticate } from '../config/firebaseConfig';
@@ -14,7 +14,7 @@ import {
   query,
   orderBy
 } from 'firebase/firestore';
-
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // --- FUNKCJA OBLICZAJĄCA CZAS POZOSTAŁY ---
 const calculateTimeRemaining = (targetDateString: string): string => {
@@ -39,7 +39,7 @@ interface DateItem {
   title: string;
   createdAt?: any;
   dateLabel?: string;
-  targetDate: string;
+  targetDate?: string;
   daysRemaining?: number;
   isFeatured?: boolean;
 }
@@ -59,29 +59,23 @@ const FeaturedDateCard = ({
   <View style={styles.featuredCard}>
     <Text style={styles.featuredSubtitle}>Nadchodzące wydarzenie</Text>
     <Text style={styles.featuredTitle}>{item.title}</Text>
-    <Text style={styles.featuredDateLabel}>({item.dateLabel})</Text>
-    <Text style={styles.featuredRemainingLabel}>Pozostało:</Text>
-    <Text style={styles.featuredRemainingValue}>{countdownString}</Text>
+    {item.dateLabel && <Text style={styles.featuredDateLabel}>({item.dateLabel})</Text>}
+    {item.targetDate && (
+      <>
+        <Text style={styles.featuredRemainingLabel}>Pozostało:</Text>
+        <Text style={styles.featuredRemainingValue}>{countdownString}</Text>
+      </>
+    )}
     <View style={styles.featuredActions}>
       <TouchableOpacity onPress={() => startEditing(item.id, item.title)}>
         <View style={styles.featuredActionBtn}>
-          <Feather
-            name="edit-3"
-            size={18}
-            color={Colors.iconColorInactive}
-            style={{ marginRight: 5 }}
-          />
+          <Feather name="edit-3" size={18} color={Colors.iconColorInactive} style={{ marginRight: 5 }} />
           <Text style={styles.featuredActionText}>Edytuj</Text>
         </View>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => deleteDate(item.id)}>
         <View style={styles.featuredActionBtn}>
-          <Feather
-            name="trash-2"
-            size={18}
-            color={Colors.iconColorInactive}
-            style={{ marginRight: 5 }}
-          />
+          <Feather name="trash-2" size={18} color={Colors.iconColorInactive} style={{ marginRight: 5 }} />
           <Text style={styles.featuredActionText}>Usuń</Text>
         </View>
       </TouchableOpacity>
@@ -92,21 +86,14 @@ const FeaturedDateCard = ({
 // --- GŁÓWNY EKRAN ---
 export default function DatesScreen() {
   const [dates, setDates] = useState<DateItem[]>([]);
-  const [newDate, setNewDate] = useState('');
+  const [newTitle, setNewTitle] = useState('');
+  const [newDate, setNewDate] = useState(new Date());
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [countdown, setCountdown] = useState<string>('');
-
-  const featuredDate = dates.find(item => item.isFeatured);
-  const regularDates = dates.filter(item => !item.isFeatured);
-
-  const FUTURE_DATE = '2027-01-01T12:00:00';
-  const FEATURED_TITLE = 'Urodziny Krzysia';
-
-
-
-  // --- useEffect: log startowy ---
-  Alert.alert("Debug", "Przebóg");
 
   // --- useEffect: pobieranie danych z Firebase ---
   useEffect(() => {
@@ -119,13 +106,10 @@ export default function DatesScreen() {
           return {
             id: doc.id,
             ...data as Omit<DateItem, 'id'>,
-            isFeatured: data.title === FEATURED_TITLE,
-            dateLabel: data.dateLabel || '22 Maja',
-            targetDate: data.targetDate || FUTURE_DATE,
-            daysRemaining: data.daysRemaining || 195
+            isFeatured: data.isFeatured // tylko z Firebase
           };
         });
-        console.log('Dane z Firebase:', items); // <-- log danych
+        console.log('Dane z Firebase:', items);
         setDates(items);
       });
       return unsubscribe;
@@ -136,30 +120,48 @@ export default function DatesScreen() {
     };
   }, []);
 
-  // --- useEffect: odliczanie dla featuredDate ---
+  // --- useEffect: odliczanie do najbliższej daty ---
   useEffect(() => {
-    const dateToCountDown = featuredDate?.targetDate || FUTURE_DATE;
-    setCountdown(calculateTimeRemaining(dateToCountDown));
+    if (!dates.length) return;
+
+    const nearest = dates
+      .filter(d => d.targetDate)
+      .sort((a, b) => new Date(a.targetDate!).getTime() - new Date(b.targetDate!).getTime())[0];
+
+    if (!nearest) return;
+
+    setCountdown(calculateTimeRemaining(nearest.targetDate!));
 
     const intervalId = setInterval(() => {
-      setCountdown(calculateTimeRemaining(dateToCountDown));
+      setCountdown(calculateTimeRemaining(nearest.targetDate!));
     }, 60000);
 
     return () => clearInterval(intervalId);
-  }, [featuredDate]);
+  }, [dates]);
 
   // --- Funkcje CRUD ---
-  const addDate = async () => {
-    if (!newDate.trim()) return;
+  const addDate = async (title: string, date: Date) => {
+    if (!title.trim()) return;
+
+    const day = date.getDate();
+    const month = date.toLocaleString('pl-PL', { month: 'long' });
+    const dateLabel = `${day} ${month}`;
+    const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
+
     await addDoc(collection(db, 'dates'), {
-      title: newDate.trim(),
+      title: title.trim(),
       createdAt: serverTimestamp(),
-      dateLabel: 'Nowa data',
-      targetDate: FUTURE_DATE,
-      daysRemaining: Math.floor(Math.random() * 365) + 1,
+      dateLabel,
+      targetDate,
       isFeatured: false
     });
-    setNewDate('');
+  };
+
+  const handleSaveNewDate = async () => {
+    await addDate(newTitle, newDate);
+    setNewTitle('');
+    setNewDate(new Date());
+    setShowAddModal(false);
   };
 
   const deleteDate = async (id: string) => {
@@ -191,25 +193,16 @@ export default function DatesScreen() {
   const renderItem = ({ item }: { item: DateItem }) => (
     <View style={styles.itemCard}>
       <View style={styles.itemContentLeft}>
-        <View
-          style={[
-            styles.iconContainer,
-            item.title.toLowerCase().includes('randki')
-              ? styles.heartIconBg
-              : styles.giftIconBg
-          ]}
-        >
-          <Feather
-            name={item.title.toLowerCase().includes('randki') ? 'heart' : 'gift'}
-            size={20}
-            color={Colors.accentPink}
-          />
+        <View style={[styles.iconContainer, item.title.toLowerCase().includes('randki') ? styles.heartIconBg : styles.giftIconBg]}>
+          <Feather name={item.title.toLowerCase().includes('randki') ? 'heart' : 'gift'} size={20} color={Colors.accentPink} />
         </View>
         <View style={styles.itemTextContainer}>
           <Text style={styles.textTitle}>{item.title}</Text>
-          <Text style={styles.textSubtitle}>
-            {item.dateLabel} ({item.daysRemaining} DNI)
-          </Text>
+          {item.dateLabel && item.daysRemaining !== undefined && (
+            <Text style={styles.textSubtitle}>
+              {item.dateLabel} ({item.daysRemaining} DNI)
+            </Text>
+          )}
         </View>
       </View>
       <View style={styles.actionsRight}>
@@ -223,13 +216,17 @@ export default function DatesScreen() {
     </View>
   );
 
+  const nearestDate = dates
+    .filter(d => d.targetDate)
+    .sort((a, b) => new Date(a.targetDate!).getTime() - new Date(b.targetDate!).getTime())[0];
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Nasze Daty</Text>
 
-      {featuredDate && (
+      {nearestDate && (
         <FeaturedDateCard
-          item={featuredDate}
+          item={nearestDate}
           countdownString={countdown}
           startEditing={startEditing}
           deleteDate={deleteDate}
@@ -237,18 +234,55 @@ export default function DatesScreen() {
       )}
 
       <FlatList
-        data={regularDates}
+        data={dates.filter(d => d.id !== nearestDate?.id)}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.flatListContent}
       />
 
       <View style={styles.bottomContainer}>
-        <TouchableOpacity style={styles.btnAddLarge} onPress={addDate}>
+        <TouchableOpacity style={styles.btnAddLarge} onPress={() => setShowAddModal(true)}>
           <Feather name="plus" size={24} color={Colors.accentPink} />
           <Text style={styles.btnAddText}>DODAJ DATĘ</Text>
         </TouchableOpacity>
       </View>
+
+      {/* --- MODAL DODAWANIA DATY --- */}
+      <Modal visible={showAddModal} transparent animationType="slide">
+        <View style={{ flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'rgba(0,0,0,0.5)' }}>
+          <View style={{ width:300, backgroundColor:'white', padding:20, borderRadius:10 }}>
+            <Text style={{ fontWeight:'bold', marginBottom:10 }}>Nowe wydarzenie</Text>
+            <TextInput
+              placeholder="Tytuł"
+              value={newTitle}
+              onChangeText={setNewTitle}
+              style={{ borderWidth:1, borderColor:'#ccc', padding:8, marginBottom:10, borderRadius:5 }}
+            />
+            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={{ marginBottom:10 }}>
+              <Text>Wybierz datę: {newDate.toLocaleDateString()}</Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={newDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) setNewDate(selectedDate);
+                }}
+              />
+            )}
+            <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
+              <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                <Text style={{ color:'red' }}>Anuluj</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveNewDate}>
+                <Text style={{ color:'green', fontWeight:'bold' }}>Dodaj</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
