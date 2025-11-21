@@ -48,6 +48,9 @@
   },
   "devDependencies": {
     "@react-native-community/cli": "^20.0.2",
+    "@types/estree": "^1.0.8",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^24.10.1",
     "@types/react": "~19.1.0",
     "@types/react-native": "^0.72.8",
     "eslint": "^9.25.0",
